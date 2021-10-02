@@ -4,97 +4,78 @@ from torch.nn import functional as F
 from typing import List
 from torch import Tensor
 
-def variational_classifier_loss(sample, reconstruction, classes, mu, log_var, kld_weight, cls_weight):
-    recon_loss = F.mse_loss(reconstruction, sample)
-    kld_loss = torch.mean(-0.5*torch.sum(1+log_var-mu**2-log_var.exp(), dim=1), dim=0)
-    cls_loss = F.cross_entropy_loss(mu, classes)
-    total_loss = recon_loss + kld_weight*kld_loss + cls_weight*cls_loss
-    return [total_loss, recon_loss, -kld_loss, cls_loss]
+'''
+    Implements a convolutional VAE as specified in 
+    https://colab.research.google.com/github/smartgeometry-ucl/dl4g/blob/master/variational_autoencoder.ipynb#scrollTo=l7b-GgGi8Ilp
+    based on https://arxiv.org/pdf/1312.6114.pdf
+    
+    Adapted to classify latent space jointly with reconstructions
+'''
 
+def vae_cls_loss(recon_x, x, mu, logvar, weight, cls, labels):
+    recon_loss = F.binary_cross_entropy(recon_x, x)
+    kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+    cls_loss = F.cross_entropy(cls, labels)
+    total_loss = 5*recon_loss + kl_loss + cls_loss
+    return total_loss, recon_loss, kl_loss, cls_loss
 
-class VAEClassifier(nn.Module):
+class Encoder(nn.Module):
+    def __init__(self, c, dim_z):
+        super(Encoder, self).__init__()
+        self.c = c
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=c, kernel_size=4, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=c, out_channels=c*2, kernel_size=4, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=c*2, out_channels=c*4, kernel_size=4, stride=2, padding=1)
+        self.fc_mu = nn.LazyLinear(dim_z)
+        self.fc_logvar = nn.LazyLinear(dim_z)
+            
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = x.view(x.size(0), -1)
+        x_mu = self.fc_mu(x)
+        x_logvar = self.fc_logvar(x)
+        return x_mu, x_logvar
 
-    '''
-        Classic convolutional VAE ported over and adapted from
-        https://github.com/AntixK/PyTorch-VAE
-        Additional classification head added
-    '''
-    def __init__(self,
-                 in_channels: int,
-                 latent_dim: int,
-                 hidden_dims: List,
-                 n_cls) -> None:
-        super(VAEClassifier, self).__init__()
-
-        self.latent_dim = latent_dim
-
-        modules = []
-        for h_dim in hidden_dims:
-            modules.append(
-                nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels=h_dim,
-                              kernel_size=3, stride=2, padding=1),
-                    nn.BatchNorm2d(h_dim),
-                    nn.LeakyReLU(True)))
-            in_channels = h_dim
-
-        self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
-
-        modules = []
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
-        hidden_dims.reverse()
-        for i in range(len(hidden_dims) - 1):
-            modules.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(hidden_dims[i],
-                                       hidden_dims[i + 1],
-                                       kernel_size=3,
-                                       stride = 2,
-                                       padding=1,
-                                       output_padding=1),
-                    nn.BatchNorm2d(hidden_dims[i + 1]),
-                    nn.LeakyReLU()))
-
-        self.decoder = nn.Sequential(*modules)
-        self.final_layer = nn.Sequential(
-                            nn.ConvTranspose2d(hidden_dims[-1],
-                                               hidden_dims[-1],
-                                               kernel_size=3,
-                                               stride=2,
-                                               padding=1,
-                                               output_padding=1),
-                            nn.BatchNorm2d(hidden_dims[-1]),
-                            nn.LeakyReLU(),
-                            nn.Conv2d(hidden_dims[-1], out_channels= 3,
-                                      kernel_size= 3, padding= 1),
-                            nn.Tanh())
-        
-        self.classifier = nn.LazyLinear(n_cls)
-
-    def encode(self, input: Tensor) -> List[Tensor]:
-        result = self.encoder(input)
-        result = torch.flatten(result, start_dim=1)
-        mu = self.fc_mu(result)
-        log_var = self.fc_var(result)
-        return mu, log_var
-
-    def decode(self, z: Tensor) -> Tensor:
-        result = self.decoder_input(z)
-        result = result.view(-1, 512, 2, 2)
-        result = self.decoder(result)
-        result = self.final_layer(result)
-        return result
-
-    def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
-
-    def forward(self, input: Tensor) -> List[Tensor]:
-        mu, log_var = self.encode(input)
-        cls = self.classifier(mu)
-        z = self.reparameterize(mu, log_var)
-        output = self.decode(z)
-        return  output, mu, log_var, cls
+class Decoder(nn.Module):
+    def __init__(self, c):
+        super(Decoder, self).__init__()
+        self.c = c
+        self.fc = nn.LazyLinear(c*4*4*4)
+        self.conv3 = nn.ConvTranspose2d(in_channels=c*4, out_channels=c*2, kernel_size=4, stride=2, padding=1)
+        self.conv2 = nn.ConvTranspose2d(in_channels=c*2, out_channels=c, kernel_size=4, stride=2, padding=1)
+        self.conv1 = nn.ConvTranspose2d(in_channels=c, out_channels=1, kernel_size=4, stride=2, padding=1)
+            
+    def forward(self, x):
+        x = self.fc(x)
+        x = x.view(x.size(0), self.c*4, 4, 4)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv2(x))
+        x = torch.sigmoid(self.conv1(x))
+        return x
+    
+class VAE(nn.Module):
+    def __init__(self, c, dim_z, ncls):
+        super(VAE, self).__init__()
+        self.encoder = Encoder(c, dim_z)
+        self.decoder = Decoder(c)
+        self.classifier = nn.Sequential(nn.LazyLinear(128),
+                                        nn.ReLU(True),
+                                        nn.LazyLinear(ncls))
+    
+    def forward(self, x):
+        latent_mu, latent_logvar = self.encoder(x)
+        cls = self.classifier(latent_mu)
+        latent = self.latent_sample(latent_mu, latent_logvar)
+        x_recon = self.decoder(latent)
+        return x_recon, latent_mu, latent_logvar, cls
+    
+    def latent_sample(self, mu, logvar):
+        if self.training:
+            # the reparameterization trick
+            std = logvar.mul(0.5).exp_()
+            eps = torch.empty_like(std).normal_()
+            return eps.mul(std).add_(mu)
+        else:
+            return mu

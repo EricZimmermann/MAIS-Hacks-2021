@@ -34,7 +34,7 @@ def main():
     stn = STN().to(device)
     optimizer = AdamW(stn.parameters(), lr=args.lr)
     elastic_aug = RandomElasticTransform(kernel_size=(33,33),sigma=(10,10), alpha=(5,5),p=0.5, mode='bilinear').to(device)
-    affine_aug = RandomAffine(degrees=(-30,30), scale=(0.7, 1.15), shear=(15,15), shear=(9,9), p=1, resample='bilinear').to(device)
+    affine_aug = RandomAffine(degrees=(-40,40), scale=(0.7, 1.15), shear=(-20,20), p=0.5, resample='bilinear').to(device)
     best_loss = np.inf
     
     # load dataset object
@@ -45,9 +45,9 @@ def main():
             optimizer.zero_grad()
             with torch.no_grad():
                 batch = batch.to(device)
-                batch = elastic_aug(batch)
                 source = batch.detach().clone()
-                augmented = affine_aug(source)
+                augmented = elastic_aug(batch)
+                augmented = affine_aug(augmented)
                 
             registered = stn(augmented)
             loss = F.l1_loss(registered, source)
@@ -62,9 +62,9 @@ def main():
         for (batch, _) in val_loader:
             with torch.no_grad():
                 batch = batch.to(device)
-                batch = elastic_aug(batch)
                 source = batch.detach().clone()
-                augmented = affine_aug(source)
+                augmented = elastic_aug(batch)
+                augmented = affine_aug(augmented)
                 registered = stn(source)
                 loss = F.mse_loss(registered, source)
                 batch_loss += loss.item()
