@@ -1,5 +1,7 @@
 import gradio as gr
 import argparse
+import torch
+from utils import StateMachine
 
 def process(lang_index, prompt_type, sketch):
     # Init Outputs
@@ -18,6 +20,10 @@ def process(lang_index, prompt_type, sketch):
 def add_argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p','--port', type=int, required=True, help='port to launch app')
+    parser.add_argument('-m','--model_dir', type=str, required=True, help='model directory')
+    parser.add_argument('-d','--data_dir', type=str, required=True, help='data directory')
+    parser.add_argument('-a','--audio_dir', type=str, required=True, help='audio directory')
+    parser.add_argument('--device', type=str, required=False, default='cpu', help='device name')
     return parser
 
 def main():
@@ -55,8 +61,11 @@ def main():
     interpret_image = gr.outputs.Image(label="Interpretation")
     latent_video = gr.outputs.HTML(label="Latent Interpolation")
 
+    # State machine
+    device = torch.device(args.device)
+    sm = StateMachine(args.model_dir, args.data_dir, args.audio_dir, device)
 
-    interface = gr.Interface(fn=process, 
+    interface = gr.Interface(fn=sm.update, 
                              inputs=[dropdown_menu,
                                      radio_choice,
                                      sketchpad,

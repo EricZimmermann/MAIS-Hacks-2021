@@ -2,11 +2,11 @@ import torch
 import torch.nn.functional as F
 import os
 
-class NerualHash:
+class NeuralHash:
     '''
         Query the closest image in the dataset using VAE latent space using class keys and max cosine agreement
     '''
-    def __init__(self, encoder, dataset, classes, device)
+    def __init__(self, encoder, dataset, classes, device):
         self.encoder = encoder
         self.classes = classes
         self.device= device
@@ -19,12 +19,13 @@ class NerualHash:
         for idx in range(len(dataset)):
             with torch.no_grad():
                 image, cls = dataset[idx]
-                embedding = F.normalize(self.encoder(image).view(-1).detach(), dim=0)
-                self.hash[cls]['image'].append(image)
-                self.hash[cls]['value'].append(embedding)
+                image = torch.tensor(image).float().unsqueeze(0)
+                embedding = F.normalize(self.encoder(image)[0].view(-1).detach(), dim=0)
+                self.hash[classes[cls]]['image'].append(image)
+                self.hash[classes[cls]]['value'].append(embedding)
        
         for cls in classes:
-            self.hash[cls]['value'] = torch.tensor(self.hash[cls]['value'], device=device)
+            self.hash[cls]['value'] = torch.stack(self.hash[cls]['value'], dim=0)
     
     def __call__(self, latent, cls):
         with torch.no_grad():
