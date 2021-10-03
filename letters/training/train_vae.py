@@ -33,8 +33,8 @@ def main():
     val_loader = DataLoader(val_set, batch_size=args.batch, num_workers=4)
     vae_cls = VAE(128, 256, len(classes)).to(device)
     optimizer = AdamW(vae_cls.parameters(), lr=args.lr)
-    elastic_aug = RandomElasticTransform(kernel_size=(33,33),sigma=(10,10), alpha=(5,5),p=0.7, mode='bilinear').to(device)
-    affine_aug = RandomAffine(degrees=(-40,40), scale=(0.7, 1.15), shear=(-20,20), p=0.7, resample='bilinear').to(device)
+    elastic_aug = RandomElasticTransform(kernel_size=(33,33),sigma=(10,10), alpha=(5,5),p=0.8, mode='bilinear').to(device)
+    affine_aug = RandomAffine(degrees=(-40,40), scale=(0.7, 1.15), shear=(-20,20), p=0.8, resample='bilinear').to(device)
     
     best_loss = np.inf
     tr_weight = args.batch / len(train_loader)

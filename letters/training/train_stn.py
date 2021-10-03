@@ -33,8 +33,8 @@ def main():
     val_loader = DataLoader(val_set, batch_size=args.batch, num_workers=4)
     stn = STN().to(device)
     optimizer = AdamW(stn.parameters(), lr=args.lr)
-    elastic_aug = RandomElasticTransform(kernel_size=(33,33),sigma=(10,10), alpha=(5,5),p=0.5, mode='bilinear').to(device)
-    affine_aug = RandomAffine(degrees=(-40,40), scale=(0.7, 1.15), shear=(-20,20), p=0.5, resample='bilinear').to(device)
+    elastic_aug = RandomElasticTransform(kernel_size=(33,33),sigma=(10,10), alpha=(5,5),p=0.8, mode='bilinear').to(device)
+    affine_aug = RandomAffine(degrees=(-40,40), scale=(0.7, 1.15), shear=(-20,20), p=0.8, resample='bilinear').to(device)
     best_loss = np.inf
     
     # load dataset object
@@ -66,7 +66,7 @@ def main():
                 augmented = elastic_aug(batch)
                 augmented = affine_aug(augmented)
                 registered = stn(source)
-                loss = F.mse_loss(registered, source)
+                loss = F.l1_loss(registered, source)
                 batch_loss += loss.item()
                 
         print(f'Validation Loss {e}: {batch_loss / len(val_loader)}')
@@ -76,7 +76,7 @@ def main():
             best_model = stn.state_dict()
             
     if not os.path.exists(args.output):
-        os.path.mkdir(args.output)
+        os.mkdir(args.output)
     
     torch.save(best_model, os.path.join(args.output, 'stn.pth.tar'))
                              
