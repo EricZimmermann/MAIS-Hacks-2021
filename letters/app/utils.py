@@ -28,8 +28,8 @@ def create_html_animation(img):
 
     anim = animation.FuncAnimation(fig, update, interval=num_frames, blit=True, save_count=num_frames)
     #anim.save("test.gif", writer="imagemagick")
-    html = anim.to_jshtml()
-    return HTML(html)
+    html = anim.to_html5_video()
+    return html
 
 def get_slider_images(decoder, start, end, num_slices):
     dl = (end - start) / (num_slices-1)
@@ -267,6 +267,7 @@ class StateMachine():
                 nb_latent = vae.encoder(neighbour)[0]
                 slices = get_slider_images(vae.decoder, original_latent, nb_latent, 150)
                 slices = slices.permute(0,2,3,1).detach().numpy()
+                slices = 1 - np.repeat(slices, 3, axis=-1)
 
                 # Create HTML animation
                 latent_video = create_html_animation(slices)
