@@ -17,18 +17,21 @@ class NerualHash:
             self.hash[cls] = {'image': [], 'value' : []}
             
         for idx in range(len(dataset)):
-            image, cls = dataset[idx]
-            embedding = F.normalize(self.encoder(image).view(-1).detach(), dim=0)
-            self.hash[cls]['image'].append(image)
-            self.hash[cls]['value'].append(embedding)
+            with torch.no_grad():
+                image, cls = dataset[idx]
+                embedding = F.normalize(self.encoder(image).view(-1).detach(), dim=0)
+                self.hash[cls]['image'].append(image)
+                self.hash[cls]['value'].append(embedding)
        
         for cls in classes:
             self.hash[cls]['value'] = torch.tensor(self.hash[cls]['value'], device=device)
     
     def __call__(self, latent, cls):
-        embedding = F.normalize(latent.view(-1), dim=0)
-        cosine_distance = torch.matmul(embedding, self.hash[cls]['value'].T)
-        neighbour = self.hash[cls]['image'][torch.argmax(cosine_distance)]
+        with torch.no_grad():
+            embedding = F.normalize(latent.view(-1), dim=0)
+            cosine_distance = torch.matmul(embedding, self.hash[cls]['value'].T)
+            neighbour = self.hash[cls]['image'][torch.argmax(cosine_distance)]
+            return neighbour
         
     def closest_nbs(self, latent):
         matches = {}
