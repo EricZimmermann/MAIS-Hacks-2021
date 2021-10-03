@@ -35,7 +35,6 @@ class CAMWrapper(nn.Module):
         cls = self.classifier(latent)
         return cls
 
-            
 class StateMachine():
     def __init__(self, model_folder, data_folder, audio_folder, device):
         
@@ -129,11 +128,11 @@ class StateMachine():
         instructions = None
         visual_prompt = None
         audio_prompt = None
+        text_prompt = None
         label_output = None
         interpret_image = None
         latent_video = None
                     
-        
         self.language = language
         self.modality_index = prompt
 
@@ -176,7 +175,7 @@ class StateMachine():
             self.sample, self.label = dataset[np.random.randint(len(dataset))]
             self.current_state = 1
             instructions = "Press Submit to get your prompt!"
-            return instructions, visual_prompt, audio_prompt, label_output, interpret_image         
+            return instructions, visual_prompt, audio_prompt, text_prompt, label_output, interpret_image         
 
         if self.current_state == 1:
             instructions = "Press Submit to get your results!"
@@ -184,16 +183,16 @@ class StateMachine():
                 self.curerent_state = 2
                 selected_lang = self.languages[self.language_index]
                 audio_prompt = self.audio[selected_lang][self.classes[self.label]]['audio']
-                return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+                return instructions, visual_prompt, audio_prompt, text_prompt, label_output, interpret_image
             if self.modality_index == 1:
                 self.curerent_state = 2
                 visual_prompt = np.transpose(self.sample, (1,2,0))
-                return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+                return instructions, visual_prompt, audio_prompt, text_prompt, label_output, interpret_image
             if self.modality_index == 2:
                 self.curerent_state = 2
                 selected_lang = self.languages[self.language_index]
-                audio_prompt = self.audio[selected_lang][self.classes[self.label]]['text']
-                return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+                text_prompt = self.audio[selected_lang][self.classes[self.label]]['text']
+                return instructions, visual_prompt, audio_prompt, text_prompt, label_output, interpret_image
 
         if self.current_state == 2:
             instructions = "Press Submit to get your fixes!"
@@ -204,9 +203,10 @@ class StateMachine():
             classification = F.softmax(classification, 1).squeeze()
             label_output = {cls:score for cls, score in zip(self.classes, classification)}
             cam_mask = grad_cam(vae, input_tensor, torch.argmax(classification))
-            return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+            return instructions, visual_prompt, audio_prompt, text_prompt, label_output, interpret_image
 
         if self.current_state == 3:
+            self.current_state = 4
             with torch.no_grad():
                 user_sample = torch.tensor(sketch).permute(1,2,0).unsqueeze(0)
                 reg_user_sample = self.stn(user_sample)
@@ -222,7 +222,4 @@ class StateMachine():
             self.language_index = 0
             self.modality_index = 0
             self.current_state = 0
-            return instructions, visual_prompt, audio_prompt, label_output, interpret_image
-            
-                 
-                
+            return instructions, visual_prompt, audio_prompt, text_prompt, label_output, interpret_image                
