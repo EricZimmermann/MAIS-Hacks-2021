@@ -48,6 +48,7 @@ def main():
     instruction_textbox = gr.outputs.Textbox(label="Instructions")
     visual_prompt = gr.outputs.Image(label="Visual Prompt")
     audio_prompt = gr.outputs.Audio(label="Audio Prompt")
+    text_prompt = gr.outputs.Textbox(label="Text Prompt")
     label_output = gr.outputs.Label(num_top_classes=5,
                                     label="Predicted character"
                                    )
@@ -63,6 +64,7 @@ def main():
                              outputs=[instruction_textbox,
                                       visual_prompt,
                                       audio_prompt,
+                                      text_prompt,
                                       label_output,
                                       interpret_image,
                                       latent_video,
