@@ -34,9 +34,14 @@ class CAMWrapper(nn.Module):
         latent = self.encoder(img)
         cls = self.classifier(latent)
         return cls
+
             
 class StateMachine():
-    def __init__(self, model_folder, data_folder, device):
+    def __init__(self, model_folder, data_folder, audio_folder, device):
+        
+        with open(os.path.join(audio_folder, 'text-audio.pickle'), 'rb') as handle:
+            self.audio = pickle.load(handle)
+        
         self.device = device
         self.english_data_path = os.path.join(data_folder, 'english')
         self.english_stn_path = os.path.join(model_folder, 'english/stn.pth.tar')
@@ -98,11 +103,11 @@ class StateMachine():
                                         device)
         
         # state variables
-        self.languages = ['english, greek, hebrew, hiragana, kanakana']
+        self.languages = ['ENGLISH', 'GREEK', 'HEBREW', 'JAPANESE_KATAKANA', 'JAPANESE_HIRAGANA']
         self.language_index = 0
         
         # prompt type
-        self.modality = ['audio', 'visual']
+        self.modality = ['audio', 'visual', 'text']
         self.modality_index = 0
         
         # sample image
@@ -128,78 +133,96 @@ class StateMachine():
         interpret_image = None
         latent_video = None
                     
-        if has_started:
-            self.language = language
-            self.modality_index = prompt
-            
-            if self.language_index == 0:
-                dataset = english_dataset
-                classes = english_classes
-                stn = english_stn
-                vae = english_vae
-                neural_hash = english_hash
         
-            elif self.language_index == 1:
-                dataset = greek_dataset
-                classes = greek_classes
-                stn = greek_stn
-                vae = greek_vae
-                neural_hash = greek_hash
+        self.language = language
+        self.modality_index = prompt
 
-            elif self.language_index == 2:
-                dataset = hebrew_dataset
-                classes = hebrew_classes
-                stn = hebrew_stn
-                vae = hebrew_vae
-                neural_hash = hebrew_hash
+        if self.language_index == 0:
+            dataset = english_dataset
+            classes = english_classes
+            stn = english_stn
+            vae = english_vae
+            neural_hash = english_hash
 
-            elif self.language_index == 3:
-                dataset = hiragana_dataset
-                classes = hiragana_classes
-                stn = hiragana_stn
-                vae = hiragana_vae
-                neural_hash = hiragana_hash
+        elif self.language_index == 1:
+            dataset = greek_dataset
+            classes = greek_classes
+            stn = greek_stn
+            vae = greek_vae
+            neural_hash = greek_hash
 
-            elif self.language_index == 4:
-                dataset = katakana_dataset
-                classes = katakana_classes
-                stn = katakana_stn
-                vae = katakana_vae
-                neural_hash = katakana_hash
-            
-            if self.current_state == 0:
-                self.sample, self.label = dataset[np.random.randint(len(dataset))]
-                self.current_state = 1
-                instructions = "Press Submit to get your prompt!"
-                return instructions, visual_prompt, audio_prompt, label_output, interpret_image         
-                
-            if self.current_state == 1:
-                if self.modality_index == 0:
-                    pass #audio lookup with self.label
-                if self.modality_index == 1:
-                    self.curerent_state = 2
-                    visual_prompt = np.transpose(self.sample, (1,2,0))
-                    return instructions, visual_prompt, audio_prompt, label_output, interpret_image
-                
-            if self.current_state == 2:
-                self.curerent_state = 3
-                input_tensor = torch.tensor(self.sample).unsqueeze(0)
-                latent = self.vae.encoder(input_tensor)
-                classification = self.vae.classifier(latent)
-                classification = F.softmax(classification, 1).squeeze()
-                label_output = {cls:score for cls, score in zip(self.classes, classification)}
+        elif self.language_index == 2:
+            dataset = hebrew_dataset
+            classes = hebrew_classes
+            stn = hebrew_stn
+            vae = hebrew_vae
+            neural_hash = hebrew_hash
+
+        elif self.language_index == 3:
+            dataset = hiragana_dataset
+            classes = hiragana_classes
+            stn = hiragana_stn
+            vae = hiragana_vae
+            neural_hash = hiragana_hash
+
+        elif self.language_index == 4:
+            dataset = katakana_dataset
+            classes = katakana_classes
+            stn = katakana_stn
+            vae = katakana_vae
+            neural_hash = katakana_hash
+
+        if self.current_state == 0:
+            self.sample, self.label = dataset[np.random.randint(len(dataset))]
+            self.current_state = 1
+            instructions = "Press Submit to get your prompt!"
+            return instructions, visual_prompt, audio_prompt, label_output, interpret_image         
+
+        if self.current_state == 1:
+            instructions = "Press Submit to get your results!"
+            if self.modality_index == 0:
+                self.curerent_state = 2
+                selected_lang = self.languages[self.language_index]
+                audio_prompt = self.audio[selected_lang][self.classes[self.label]]['audio']
                 return instructions, visual_prompt, audio_prompt, label_output, interpret_image
-                
-            if self.current_state == 3:
-                with torch.no_grad():
-                    user_sample = torch.tensor(sketch).permute(1,2,0).unsqueeze(0)
-                    reg_user_sample = self.stn(user_sample)
-                    reg_latent = self.vae.encode(reg_user_sample)
-                    original_latent = self.vae.encode(user_sample)
-                    neighbour = self.hash(reg_latent, self.label)
-                    nb_latent = self.vae.encode(neighbour)
-                    slices = get_slider_images(self.vae.decode, original_latent, nb_latent, 300)
-                    slices = slices.permute(0,2,3,1).detach().numpy()
-                    
+            if self.modality_index == 1:
+                self.curerent_state = 2
+                visual_prompt = np.transpose(self.sample, (1,2,0))
+                return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+            if self.modality_index == 2:
+                self.curerent_state = 2
+                selected_lang = self.languages[self.language_index]
+                audio_prompt = self.audio[selected_lang][self.classes[self.label]]['text']
+                return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+
+        if self.current_state == 2:
+            instructions = "Press Submit to get your fixes!"
+            self.curerent_state = 3
+            input_tensor = torch.tensor(self.sample).unsqueeze(0)
+            latent = self.vae.encoder(input_tensor)
+            classification = self.vae.classifier(latent)
+            classification = F.softmax(classification, 1).squeeze()
+            label_output = {cls:score for cls, score in zip(self.classes, classification)}
+            cam_mask = grad_cam(vae, input_tensor, torch.argmax(classification))
+            return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+
+        if self.current_state == 3:
+            with torch.no_grad():
+                user_sample = torch.tensor(sketch).permute(1,2,0).unsqueeze(0)
+                reg_user_sample = self.stn(user_sample)
+                reg_latent = self.vae.encode(reg_user_sample)
+                original_latent = self.vae.encode(user_sample)
+                neighbour = self.hash(reg_latent, self.label)
+                nb_latent = self.vae.encode(neighbour)
+                slices = get_slider_images(self.vae.decode, original_latent, nb_latent, 300)
+                slices = slices.permute(0,2,3,1).detach().numpy()
+
+        if self.current_state == 4:
+            instructions = 'Please press submit to reset"
+            self.language_index = 0
+            self.modality_index = 0
+            self.current_state = 0
+            return instructions, visual_prompt, audio_prompt, label_output, interpret_image
+            
                  
                 

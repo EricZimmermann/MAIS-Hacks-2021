@@ -6,7 +6,7 @@ from char_lut import CHARACTERS as chars
 import pickle
 
 # CHANGE ACCORDING TO SYSTEM
-OUT_DIR = '/usr/local/data/kvasilev/mais/MAIS-Hacks-2021/letters/data/audio'
+OUT_DIR = '../data/audio'
 WAV = '.wav'
 LANGUAGE="en"
 
@@ -41,6 +41,6 @@ for lang in chars.keys():
     text_audio_dict[lang] = lang_dict
 
 # === Save text+audio dict ===
-DICT_DIR = '/usr/local/data/kvasilev/mais/MAIS-Hacks-2021/letters/data/' # CHANGE PATH AS NEEDED
+DICT_DIR = '../data/' # CHANGE PATH AS NEEDED
 with open(f'{DICT_DIR}text-audio.pickle', 'wb') as handle:
     pickle.dump(text_audio_dict, handle)
