@@ -1,5 +1,5 @@
 CHARACTERS = {
-    ENGLISH: {'A':'upper case A',
+    'ENGLISH': {'A':'upper case A',
               'a':'lower case a',
               'B':'upper case B',
               'b':'lower case b',
@@ -50,9 +50,9 @@ CHARACTERS = {
               'Y':'upper case Y',
               'y':'lower case y',
               'Z':'upper case Z',
-              'z':'lower case z',
-             }
-    GREEK:{'Α':'upper case alpha',
+              'z':'lower case z'
+             },
+    'GREEK':{'Α':'upper case alpha',
            'α':'lower case alpha',
            'Β':'upper case beta',
            'β':'lower case beta',
@@ -100,9 +100,9 @@ CHARACTERS = {
            'Ψ':'upper case psi',
            'ψ':'lower case psi',
            'Ω':'upper case omega',
-           'ω':'lower case omega',
+           'ω':'lower case omega'
           },
-    HEBREW: {'א': 'aleph',
+    'HEBREW': {'א': 'aleph',
              'ב': 'bet',
              'ג': 'gimel',
              'ד': 'dalet',
@@ -128,9 +128,9 @@ CHARACTERS = {
              'ק': 'qof',
              'ר': 'resh',
              'ש': 'shin',
-             'ת': 'tav',
+             'ת': 'tav'
              },
-    JAPANESE_KATAKANA: {
+    'JAPANESE_KATAKANA': {
             'ア': 'katakana ah',
             'イ': 'katakana ee',
             'ウ': 'katakana oo', 
@@ -176,9 +176,9 @@ CHARACTERS = {
             'ロ': 'katakana ro',
             'ワ': 'katakana wa',
             'ヲ': 'katakana wo',
-            'ン': 'katakana n',
+            'ン': 'katakana n'
             },
-    JAPANESE_HIRAGANA: {
+    'JAPANESE_HIRAGANA': {
             'あ': 'hiragana ah',
             'い': 'hiragana ee',
             'う': 'hiragana oo',
@@ -224,6 +224,6 @@ CHARACTERS = {
             'ろ': 'hiragana roh',
             'わ': 'hiragana wah',
             'を': 'hiragana woh',
-            'ん': 'hiragana n',
-            },
+            'ん': 'hiragana n'
+            }
 }
